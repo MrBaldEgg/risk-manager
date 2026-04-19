@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:16-alpine
+    
+    container_name: risk_db  
+    
+    environment:  
+      POSTGRES_USER: postgres      
+      POSTGRES_PASSWORD: postgres  # Пароль (сменить)
+      POSTGRES_DB: risk_db       
+
+    ports:
+      - "5432:5432"
+    
+    #СОхранение данных
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    
+    healthcheck:  # Проверка 
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s   
+      timeout: 5s     
+      retries: 5      
+
+volumes:
+  postgres_data: 

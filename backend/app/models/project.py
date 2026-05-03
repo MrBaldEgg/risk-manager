@@ -66,7 +66,7 @@ class Project(Base):
     # Отношения (автоматичесское заполнение)
     owner = relationship("User", back_populates="projects")
     risks = relationship("Risk", back_populates="project", cascade="all, delete-orphan")
-    # analyses = relationship("RiskAnalysis", back_populates="project", cascade="all, delete-orphan")
+    analyses = relationship("RiskAnalysis", back_populates="project", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Project(id={self.id}, name={self.name}, status={self.status})>"

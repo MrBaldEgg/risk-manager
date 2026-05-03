@@ -6,4 +6,7 @@ __all__ = [
     "User", "UserRole",
     "Project", "ProjectStatus", "BusinessSphere",
     "Risk", "RiskCategory", "RiskPriority",
+    "Question", "QuestionCategory",
+    "RiskAnalysis", "AnalysisStatus",
+    "Answer",
 ]

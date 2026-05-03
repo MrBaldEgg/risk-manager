@@ -1,4 +1,3 @@
-# app/models/user.py
 from sqlalchemy import Column, String, Boolean, DateTime, Text, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from app.db.base import Base
@@ -77,8 +76,9 @@ class User(Base):
         comment="Дата последнего входа"
     )
     
-    # Связи с другими таблицами (будут позже)
+    # Связи
     projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan",lazy="selectin")
+    analyses = relationship("RiskAnalysis",back_populates="user",cascade="all, delete-orphan",lazy="selectin")
     
     def __repr__(self):
         """Строковое представление объекта (для отладки)"""

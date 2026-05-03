@@ -16,6 +16,9 @@ from app.core.config import settings
 from app.models.user import User  # noqa: F401
 from app.models.project import Project  # noqa: F401
 from app.models.risk import Risk  # noqa: F401
+from app.models.question import Question  # noqa: F401
+from app.models.risk_analysis  import RiskAnalysis  # noqa: F401
+from app.models.answer import Answer  # noqa: F401
 
 config = context.config
 

@@ -75,17 +75,17 @@ class Risk(Base):
         comment="ID проекта"
     )
     
-    # # Связь с анализом (опционально)
-    # analysis_id = Column(
-    #     String(36),
-    #     ForeignKey("risk_analyses.id", ondelete="SET NULL"),
-    #     nullable=True,
-    #     comment="ID сессии анализа"
-    # )
+    # Связь с анализом (опционально)
+    analysis_id = Column(
+        String(36),
+        ForeignKey("risk_analyses.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="ID сессии анализа"
+    )
     
     # Отношения
     project = relationship("Project", back_populates="risks")
-    # analysis = relationship("RiskAnalysis", back_populates="risks")
+    analysis = relationship("RiskAnalysis", back_populates="risks")
     # solutions = relationship("Solution", back_populates="risk", cascade="all, delete-orphan")
     
     def calculate_priority(self):

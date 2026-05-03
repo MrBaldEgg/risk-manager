@@ -14,6 +14,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from app.db.base import Base
 from app.core.config import settings
 from app.models.user import User  # noqa: F401
+from app.models.project import Project  # noqa: F401
+from app.models.risk import Risk  # noqa: F401
 
 config = context.config
 

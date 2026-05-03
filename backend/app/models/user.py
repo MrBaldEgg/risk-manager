@@ -5,15 +5,13 @@ from app.db.base import Base
 import enum
 
 class UserRole(str, enum.Enum):
-    """Роли пользователей в системе"""
     ADMIN = "admin"           # Администратор (управление пользователями)
-    ENTREPRENEUR = "entrepreneur"  # Обычный предприниматель
+    ENTREPRENEUR = "entrepreneur"  # Обычный предприниматель (зарегистрированный пользователь)
     GUEST = "guest"            # Гость (ограниченный доступ)
 
 class User(Base):
-    """Модель пользователя системы"""
     
-    __tablename__ = "users"  # Имя таблицы в БД
+    __tablename__ = "users"  
     
     # Основные поля
     id = Column(String(36), primary_key=True, index=True)  # UUID как строка
@@ -80,7 +78,7 @@ class User(Base):
     )
     
     # Связи с другими таблицами (будут позже)
-    # projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
+    projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan",lazy="selectin")
     
     def __repr__(self):
         """Строковое представление объекта (для отладки)"""

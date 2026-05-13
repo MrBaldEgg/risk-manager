@@ -1,21 +1,21 @@
 import uuid
 import re
-from typing import List, Dict
+from typing import List, Set
 from app.models.risk import Risk, RiskCategory
 from app.models.answer import Answer
 
 
 class RiskGenerator:
     """
-    Генератор рисков на основе ответов пользователя. (пока что поиск клюбчевых слов)
-    Анализ текста - выделение категории риска на основе содержания ответа.
+    Генератор рисков на основе ответов пользователя.
     
-    НА БУДЕЩЕЕ - БУДЕТ РЕАЛИЗОВАНО NLP/LLM ЛОГИКА для более глубокого анализа
+    Разделяет текст на предложения/фразы,
+    ищет ключевые слова в каждой фразе отдельно,
+    создает структурированные риски.
     """
     
-    # Словарь: ключевые слова в категорию риска
-    KEYWORDS_MAP: Dict[str, RiskCategory] = {
-        # Кадровые риски
+    KEYWORDS_MAP = {
+        # Кадровые
         "сотрудник": RiskCategory.PERSONNEL,
         "кадры": RiskCategory.PERSONNEL,
         "уволится": RiskCategory.PERSONNEL,
@@ -25,22 +25,27 @@ class RiskGenerator:
         "квалификация": RiskCategory.PERSONNEL,
         "текучесть": RiskCategory.PERSONNEL,
         "обучение": RiskCategory.PERSONNEL,
-        
-        # Финансовые риски
+        # Финансовые
         "деньги": RiskCategory.FINANCIAL,
         "финансы": RiskCategory.FINANCIAL,
         "прибыль": RiskCategory.FINANCIAL,
         "убытки": RiskCategory.FINANCIAL,
-        "кассовый разрыв": RiskCategory.FINANCIAL,
+        "кассовый": RiskCategory.FINANCIAL,
         "кредит": RiskCategory.FINANCIAL,
         "инвестиции": RiskCategory.FINANCIAL,
         "бюджет": RiskCategory.FINANCIAL,
-        "налог": RiskCategory.FINANCIAL,
-        "ндс": RiskCategory.FINANCIAL,
-        "цена": RiskCategory.FINANCIAL,
         "дорого": RiskCategory.FINANCIAL,
-        
-        # Рыночные риски
+        "цена": RiskCategory.FINANCIAL,
+        # Правовые
+        "налог": RiskCategory.LEGAL,
+        "ндс": RiskCategory.LEGAL,
+        "закон": RiskCategory.LEGAL,
+        "проверка": RiskCategory.LEGAL,
+        "лицензия": RiskCategory.LEGAL,
+        "суд": RiskCategory.LEGAL,
+        "договор": RiskCategory.LEGAL,
+        "штраф": RiskCategory.LEGAL,
+        # Рыночные
         "конкурент": RiskCategory.MARKET,
         "конкуренция": RiskCategory.MARKET,
         "спрос": RiskCategory.MARKET,
@@ -48,18 +53,7 @@ class RiskGenerator:
         "рынок": RiskCategory.MARKET,
         "продажи": RiskCategory.MARKET,
         "реклама": RiskCategory.MARKET,
-        "маркетинг": RiskCategory.MARKET,
-        
-        # Правовые риски
-        "закон": RiskCategory.LEGAL,
-        "проверка": RiskCategory.LEGAL,
-        "лицензия": RiskCategory.LEGAL,
-        "суд": RiskCategory.LEGAL,
-        "договор": RiskCategory.LEGAL,
-        "регулятор": RiskCategory.LEGAL,
-        "штраф": RiskCategory.LEGAL,
-        
-        # Операционные риски
+        # Операционные
         "поставщик": RiskCategory.OPERATIONAL,
         "логистика": RiskCategory.OPERATIONAL,
         "оборудование": RiskCategory.OPERATIONAL,
@@ -68,28 +62,21 @@ class RiskGenerator:
         "качество": RiskCategory.OPERATIONAL,
         "брак": RiskCategory.OPERATIONAL,
         "производство": RiskCategory.OPERATIONAL,
-        "процесс": RiskCategory.OPERATIONAL,
-        
-        # ИТ-риски
+        # ИТ
         "данные": RiskCategory.IT,
         "безопасность": RiskCategory.IT,
         "взлом": RiskCategory.IT,
         "сервер": RiskCategory.IT,
         "сайт": RiskCategory.IT,
-        "программа": RiskCategory.IT,
         "технология": RiskCategory.IT,
-        "автоматизация": RiskCategory.IT,
-        
-        # Репутационные риски
+        # Репутационные
         "репутация": RiskCategory.REPUTATIONAL,
         "отзыв": RiskCategory.REPUTATIONAL,
         "жалоба": RiskCategory.REPUTATIONAL,
         "скандал": RiskCategory.REPUTATIONAL,
-        "соцсети": RiskCategory.REPUTATIONAL,
     }
     
-    # Словарь: категория в примеры названий рисков
-    RISK_TITLES: Dict[RiskCategory, List[str]] = {
+    RISK_TITLES = {
         RiskCategory.PERSONNEL: [
             "Потеря ключевого сотрудника",
             "Снижение квалификации персонала",
@@ -97,7 +84,7 @@ class RiskGenerator:
         ],
         RiskCategory.FINANCIAL: [
             "Кассовый разрыв",
-            "Рост налоговой нагрузки",
+            "Рост расходов",
             "Снижение прибыльности",
         ],
         RiskCategory.MARKET: [
@@ -108,7 +95,7 @@ class RiskGenerator:
         RiskCategory.LEGAL: [
             "Изменение законодательства",
             "Штрафы и санкции",
-            "Проблемы с лицензированием",
+            "Проблемы с регулированием",
         ],
         RiskCategory.OPERATIONAL: [
             "Сбой поставок",
@@ -127,11 +114,48 @@ class RiskGenerator:
         ],
     }
     
+    def _split_into_phrases(self, text: str) -> List[str]:
+        """
+        Разделяет текст на отдельные фразы.
+        
+        Учитывает:
+        - Точки, запятые, точки с запятой
+        - Союз "и" между разными темами
+        - "а также", "еще", "также" как разделители
+        """
+        # Заменяем разделители на |
+        text = re.sub(r'\s+и\s+', '|', text)
+        text = re.sub(r'\s+а также\s+', '|', text)
+        text = re.sub(r'\s+еще\s+', '|', text)
+        text = re.sub(r'\s+также\s+', '|', text)
+        
+        # Разделяем
+        phrases = re.split(r'[.,;|]', text)
+        
+        # Очищаем и фильтруем пустые
+        phrases = [p.strip() for p in phrases if p.strip()]
+        
+        return phrases
+    
+    def _find_keywords(self, text: str) -> Set[str]:
+        """Находит все ключевые слова в тексте"""
+        text_lower = text.lower()
+        found = set()
+        
+        for keyword in self.KEYWORDS_MAP:
+            if keyword in text_lower:
+                found.add(keyword)
+        
+        return found
+    
     def analyze_answers(self, answers: List[Answer]) -> List[Risk]:
         """
-        Анализ ответов - генерация рисков
-        answers: Список ответов пользователя
-        Returns: Список сгенерированных рисков
+        Анализирует ответы и генерирует риски.
+        
+        Для каждого ответа:
+        1. Разделяет на фразы
+        2. В каждой фразе ищет ключевые слова
+        3. Создает риск для каждой найденной категории
         """
         risks: List[Risk] = []
         used_categories: set = set()
@@ -140,22 +164,28 @@ class RiskGenerator:
             if not answer.text:
                 continue
             
-            text_lower = answer.text.lower()
+            # Разделяем на фразы
+            phrases = self._split_into_phrases(answer.text)
             
-            # Поиск ключевых слов в ответе
-            for keyword, category in self.KEYWORDS_MAP.items():
-                if keyword in text_lower and category not in used_categories:
-                    risk = self._create_risk(answer.text, category, keyword)
-                    risks.append(risk)
-                    used_categories.add(category)
-                    break  # Один риск на ответ
+            for phrase in phrases:
+                # Ищем ключевые слова в каждой фразе
+                keywords = self._find_keywords(phrase)
+                
+                for keyword in keywords:
+                    category = self.KEYWORDS_MAP[keyword]
+                    
+                    # Один риск на категорию
+                    if category not in used_categories:
+                        risk = self._create_risk(phrase, category, keyword)
+                        risks.append(risk)
+                        used_categories.add(category)
         
-        # Если нет - то заглушка риска
+        # Если ничего не нашли — общий риск
         if not risks:
             risk = Risk(
                 id=str(uuid.uuid4()),
                 title="Неопределенный риск",
-                description="Требуется дополнительный анализ. Рекомендуется консультация специалиста.",
+                description="Требуется дополнительный анализ.",
                 category=RiskCategory.MARKET,
                 probability=3,
                 impact=3,
@@ -165,37 +195,26 @@ class RiskGenerator:
         
         return risks
     
-    def _create_risk(self, answer_text: str, category: RiskCategory, keyword: str) -> Risk:
-        """
-        Создает объект риска на основе найденного ключевого слова.
-        
-        Args:
-            answer_text: Текст ответа пользователя
-            category: Категория риска
-            keyword: Найденное ключевое слово
-            
-        Returns:
-            Объект Risk
-        """
-        # Выбираем подходящее название из шаблонов
+    def _create_risk(self, phrase: str, category: RiskCategory, keyword: str) -> Risk:
+        """Создает объект риска"""
         titles = self.RISK_TITLES.get(category, ["Неопределенный риск"])
-        title = titles[0]  # Пока только первое название в словаре (В БУДУЩЕМ НАДО БУДЕТ ДОБАВИТЬ УМНУЮ ТИПИЗАЦИЮ)
+        title = titles[0]                                                       # Подумать над полноценной типизацией !!!!!!!!!!
         
-        # Базовая оценка (пользователь может изменить в матрице) / подумать может встроить в опросник!!!!
         probability = 2
         impact = 2
         
-        #  Если есть тревожные слова - повышается влияние риска
-        alarm_words = ["боюсь", "страшно", "катастрофа", "критично", "ужас", "страх", "нервы"]
+        # Тревожные слова - выше оценка
+        alarm_words = ["боюсь", "страшно", "катастрофа", "критично", "ужас", "переживаю", "беспокоит"]
         for word in alarm_words:
-            if word in answer_text.lower():
-                impact = 4
+            if word in phrase.lower():
+                probability = 3
+                impact = 3
                 break
         
         risk = Risk(
             id=str(uuid.uuid4()),
             title=title,
-            description=answer_text[:500],  # Обрезаем до 500 символов (на всякий случай)
+            description=phrase[:500],
             category=category,
             probability=probability,
             impact=impact,
@@ -205,5 +224,4 @@ class RiskGenerator:
         return risk
 
 
-# Глобальный экземпляр генератора
 risk_generator = RiskGenerator()
